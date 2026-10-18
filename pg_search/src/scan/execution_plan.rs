@@ -1616,6 +1616,14 @@ impl ExecutionPlan for PgSearchScanPlan {
                             scanner.set_score_threshold(score_threshold);
                         }
 
+                        let effective_ra_threshold =
+                            match (lookup.score_threshold(), score_threshold) {
+                                (Some(a), Some(b)) => Some(a.max(b)),
+                                (Some(a), None) => Some(a),
+                                (None, Some(b)) => Some(b),
+                                (None, None) => None,
+                            };
+
                         let ra_batch = if let Some(lookup_query) =
                             crate::scan::pre_filter::try_convert_rank_lookup_to_query(
                                 &lookup,
@@ -1626,6 +1634,7 @@ impl ExecutionPlan for PgSearchScanPlan {
                             let ra_results = reader.search_ra_lookup(
                                 &ra_weights,
                                 lookup_query,
+                                effective_ra_threshold,
                                 &mut emitted_docs,
                             );
                             if let Some(ref counter) = queries {
